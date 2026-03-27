@@ -1,0 +1,98 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: kafka-iot-ingestor
+  datasource:
+    url: jdbc:postgresql://localhost:55432/iot
+    username: iot_user
+    password: iot_password
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: iot-hikari
+      minimum-idle: 6
+      maximum-pool-size: 24
+      idle-timeout: 120000
+      max-lifetime: 1800000
+      connection-timeout: 1000
+      validation-timeout: 500
+      keepalive-time: 30000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 250
+          time_zone: UTC
+        order_inserts: true
+        generate_statistics: false
+        default_schema: public
+  kafka:
+    bootstrap-servers: localhost:39092
+    client-id: iot-processor
+    admin:
+      auto-create: true
+      fail-fast: true
+    consumer:
+      group-id: iot-sensor-processor
+      auto-offset-reset: latest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        allow.auto.create.topics: false
+        max.poll.interval.ms: 300000
+        session.timeout.ms: 15000
+        heartbeat.interval.ms: 5000
+    listener:
+      missing-topics-fatal: true
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      compression-type: lz4
+      properties:
+        enable.idempotence: true
+        linger.ms: 15
+        batch.size: 65536
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 120000
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+iot:
+  topic:
+    name: sensor_data
+    invalid-name: sensor_data_invalid
+    unknown-device-name: sensor_data_unknown_device
+    partitions: 12
+    replication-factor: 1
+  consumer:
+    listener-id: sensor-data-listener
+    concurrency: 6
+    max-poll-records: 500
+    fetch-min-bytes: 65536
+    fetch-max-wait-ms: 50
+    max-partition-fetch-bytes: 1048576
+  validation:
+    max-device-id-length: 64
+    device-cache-refresh-ms: 60000
+  backpressure:
+    hikari-usage-threshold: 0.85
+    pause-ms: 5000
+  observability:
+    log-interval-ms: 10000
