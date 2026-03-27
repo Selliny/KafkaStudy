@@ -14,6 +14,7 @@ MVP de ingestão IoT focado em fundamentos de Apache Kafka com arquitetura híbr
 - O projeto continua fixado em Kafka `3.8.0`, mas o `docker-compose` usa `bitnamilegacy/kafka:3.8.0` porque as tags versionadas deixaram o catálogo público `bitnami/*`.
 - O broker Kafka publicado para o host usa `localhost:39092`. A porta `9092` continua sendo usada apenas dentro do container.
 - O TimescaleDB publicado para o host usa `localhost:55432` para evitar conflito com outras instâncias locais de Postgres.
+- O pgAdmin publicado para o host usa `http://localhost:5052`.
 
 ## Estrutura
 
@@ -80,6 +81,17 @@ Espere o `kafka-init` finalizar e confirme que o tópico existe:
 docker compose logs kafka-init
 docker compose exec kafka /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic sensor_data
 ```
+
+Se quiser inspecionar o banco via pgAdmin:
+
+- URL: `http://localhost:5052`
+- Login: `admin@iot.local`
+- Senha: `admin123`
+- Host do servidor dentro do pgAdmin: `timescaledb`
+- Porta: `5432`
+- Database: `iot`
+- Username: `iot_user`
+- Password: `iot_password`
 
 ### 2. Subir a aplicação Spring Boot
 

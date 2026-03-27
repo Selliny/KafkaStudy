@@ -102,9 +102,28 @@ services:
       timeout: 5s
       retries: 12
 
+  pgadmin:
+    image: dpage/pgadmin4:9.13.0
+    container_name: kafkaexample-pgadmin
+    restart: unless-stopped
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    ports:
+      - "5052:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@iot.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DISABLE_POSTFIX: "true"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - timescaledb_net
+
 volumes:
   kafka_data:
   timescaledb_data:
+  pgadmin_data:
 
 networks:
   kafka_net:
