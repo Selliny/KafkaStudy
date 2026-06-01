@@ -1,98 +1,164 @@
+# Configuracao HTTP do backend Spring Boot.
 server:
+  # Porta onde a aplicacao ficara disponivel no host.
   port: 8080
 
 spring:
   application:
+    # Nome logico da aplicacao para logs e observabilidade.
     name: kafka-iot-ingestor
   datasource:
+    # URL JDBC do TimescaleDB exposto pelo Docker Compose.
     url: jdbc:postgresql://localhost:55432/iot
+    # Usuario da aplicacao no banco.
     username: iot_user
+    # Senha da aplicacao no banco.
     password: iot_password
+    # Driver JDBC usado pelo Spring Data.
     driver-class-name: org.postgresql.Driver
     hikari:
+      # Nome amigavel do pool de conexoes.
       pool-name: iot-hikari
+      # Numero minimo de conexoes ociosas prontas para uso.
       minimum-idle: 6
+      # Numero maximo de conexoes simultaneas no pool.
       maximum-pool-size: 24
+      # Tempo maximo que uma conexao pode ficar ociosa.
       idle-timeout: 120000
+      # Tempo maximo de vida de cada conexao.
       max-lifetime: 1800000
+      # Tempo maximo de espera por uma conexao livre.
       connection-timeout: 1000
+      # Tempo maximo usado para validar se a conexao ainda esta viva.
       validation-timeout: 500
+      # Mantem conexoes aquecidas para evitar reconnect frequente.
       keepalive-time: 30000
   jpa:
+    # Evita manter sessao JPA aberta ate a camada web.
     open-in-view: false
     hibernate:
+      # O schema ja nasce pronto pelo script SQL do container.
       ddl-auto: none
     properties:
       hibernate:
         jdbc:
+          # Tamanho do batch JDBC para melhorar throughput de insert.
           batch_size: 250
+          # Forca Hibernate a trabalhar em UTC.
           time_zone: UTC
+        # Reordena inserts para favorecer batching.
         order_inserts: true
+        # Desliga estatisticas internas para reduzir overhead.
         generate_statistics: false
+        # Usa o schema publico por padrao.
         default_schema: public
   kafka:
+    # Endereco do broker Kafka exposto pelo Compose.
     bootstrap-servers: localhost:39092
+    # Identificador do client Kafka desta aplicacao.
     client-id: iot-processor
     admin:
+      # Permite que o AdminClient crie topicos declarados em beans.
       auto-create: true
+      # Falha rapido se o broker estiver indisponivel no startup.
       fail-fast: true
     consumer:
+      # Nome do consumer group do processador.
       group-id: iot-sensor-processor
+      # Em laboratorio, novos consumidores leem apenas eventos novos.
       auto-offset-reset: latest
+      # O commit sera manual, controlado pelo listener.
       enable-auto-commit: false
+      # Deserializador da chave Kafka.
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # Deserializador do valor Kafka.
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       properties:
+        # Impede criacao acidental de topicos pelo consumer.
         allow.auto.create.topics: false
+        # Tempo maximo permitido entre polls antes de rebalance.
         max.poll.interval.ms: 300000
+        # Timeout de sessao do consumer group.
         session.timeout.ms: 15000
+        # Intervalo de heartbeat do consumer.
         heartbeat.interval.ms: 5000
     listener:
+      # Falha o startup se o topico principal nao existir.
       missing-topics-fatal: true
     producer:
+      # Exige ack de todas as replicas em sincronia.
       acks: all
+      # Serializador da chave.
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Serializador do valor.
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Compressao leve para reduzir I/O.
       compression-type: lz4
       properties:
+        # Evita duplicidade em caso de retry de producer.
         enable.idempotence: true
+        # Agrupa mensagens por ate 15 ms para formar batches melhores.
         linger.ms: 15
+        # Tamanho do batch do producer.
         batch.size: 65536
+        # Numero maximo de requests em voo por conexao.
         max.in.flight.requests.per.connection: 5
+        # Tempo total de entrega antes de falhar o envio.
         delivery.timeout.ms: 120000
   jackson:
     deserialization:
+      # Ignora campos extras no JSON recebido.
       fail-on-unknown-properties: false
 
 management:
   endpoints:
     web:
       exposure:
+        # Endpoints expostos localmente para health e metricas.
         include: health,info,metrics,prometheus
   endpoint:
     health:
       probes:
+        # Ativa liveness/readiness quando o framework suportar.
         enabled: true
 
 iot:
   topic:
+    # Topico principal com eventos validos.
     name: sensor_data
+    # Topico para payloads invalidos.
     invalid-name: sensor_data_invalid
+    # Topico para devices nao cadastrados.
     unknown-device-name: sensor_data_unknown_device
+    # Topico de dead-letter para falhas permanentes do pipeline principal.
+    dlt-name: sensor_data.DLT
+    # Numero de particoes usado no topico.
     partitions: 12
+    # Fator de replicacao usado neste laboratorio local.
     replication-factor: 1
   consumer:
+    # Id do listener registrado no Spring Kafka.
     listener-id: sensor-data-listener
+    # Numero de threads paralelas do listener.
     concurrency: 6
+    # Numero maximo de registros por poll.
     max-poll-records: 500
+    # Quantidade minima de bytes por fetch.
     fetch-min-bytes: 65536
+    # Tempo maximo de espera do fetch.
     fetch-max-wait-ms: 50
+    # Limite de bytes puxados por particao.
     max-partition-fetch-bytes: 1048576
   validation:
+    # Limite maximo aceito para deviceId.
     max-device-id-length: 64
+    # Intervalo de atualizacao do cache de devices.
     device-cache-refresh-ms: 60000
   backpressure:
+    # Percentual do Hikari a partir do qual o consumo e pausado.
     hikari-usage-threshold: 0.85
+    # Tempo de pausa antes de tentar retomar o listener.
     pause-ms: 5000
   observability:
+    # Intervalo da janela de log das metricas consolidadas.
     log-interval-ms: 10000
